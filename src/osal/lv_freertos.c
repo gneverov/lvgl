@@ -73,7 +73,7 @@ lv_result_t lv_thread_init(lv_thread_t * pxThread, lv_thread_prio_t xSchedPriori
     BaseType_t xTaskCreateStatus = xTaskCreate(
                                        prvRunThread,
                                        pcTASK_NAME,
-                                       (uint16_t)usStackSize,
+                                       (uint16_t)usStackSize / sizeof(StackType_t),
                                        (void *)pxThread,
                                        tskIDLE_PRIORITY + xSchedPriority,
                                        &pxThread->xTaskHandle);
@@ -282,6 +282,7 @@ lv_result_t lv_thread_sync_signal(lv_thread_sync_t * pxCond)
     /* Release the mutex. */
     xSemaphoreGive(pxCond->xSyncMutex);
 #endif
+
 
     return LV_RESULT_OK;
 }
