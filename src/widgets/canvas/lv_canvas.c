@@ -15,7 +15,7 @@
 #include "../../display/lv_display.h"
 #include "../../draw/sw/lv_draw_sw.h"
 #include "../../stdlib/lv_string.h"
-
+#include "../../misc/cache/lv_cache.h"
 /*********************
  *      DEFINES
  *********************/
@@ -70,21 +70,16 @@ void lv_canvas_set_buffer(lv_obj_t * obj, void * buf, int32_t w, int32_t h, lv_c
 
     lv_canvas_t * canvas = (lv_canvas_t *)obj;
     uint32_t stride = lv_draw_buf_width_to_stride(w, cf);
-    lv_memzero(&canvas->static_buf, sizeof(canvas->static_buf));
-    lv_image_header_init(&canvas->static_buf.header, w, h, cf, stride, 0);
-    canvas->static_buf.data_size = stride * h;
-    canvas->static_buf.data = lv_draw_buf_align(buf, cf);
-    canvas->static_buf.unaligned_data = buf;
+    lv_draw_buf_init(&canvas->static_buf, w, h, cf, stride, buf, stride * h);
     canvas->draw_buf = &canvas->static_buf;
 
     const void * src = lv_image_get_src(obj);
     if(src) {
-        lv_cache_lock();
-        lv_cache_invalidate_by_src(src, LV_CACHE_SRC_TYPE_POINTER);
-        lv_cache_unlock();
+        lv_image_cache_drop(src);
     }
 
     lv_image_set_src(obj, canvas->draw_buf);
+    lv_image_cache_drop(canvas->draw_buf);
 }
 
 void lv_canvas_set_draw_buf(lv_obj_t * obj, lv_draw_buf_t * draw_buf)
@@ -97,12 +92,11 @@ void lv_canvas_set_draw_buf(lv_obj_t * obj, lv_draw_buf_t * draw_buf)
 
     const void * src = lv_image_get_src(obj);
     if(src) {
-        lv_cache_lock();
-        lv_cache_invalidate_by_src(src, LV_CACHE_SRC_TYPE_POINTER);
-        lv_cache_unlock();
+        lv_image_cache_drop(src);
     }
 
     lv_image_set_src(obj, draw_buf);
+    lv_image_cache_drop(draw_buf);
 }
 
 void lv_canvas_set_px(lv_obj_t * obj, int32_t x, int32_t y, lv_color_t color, lv_opa_t opa)
@@ -252,36 +246,18 @@ const void * lv_canvas_get_buf(lv_obj_t * obj)
  * Other functions
  *====================*/
 
-void lv_canvas_copy_buf(lv_obj_t * obj, const void * to_copy, int32_t x, int32_t y, int32_t w, int32_t h)
+void lv_canvas_copy_buf(lv_obj_t * obj, const lv_area_t * canvas_area, lv_draw_buf_t * dest_buf,
+                        const lv_area_t * dest_area)
 {
     LV_ASSERT_OBJ(obj, MY_CLASS);
-    LV_ASSERT_NULL(to_copy);
+    LV_ASSERT_NULL(canvas_area && dest_buf);
 
     lv_canvas_t * canvas = (lv_canvas_t *)obj;
     if(canvas->draw_buf == NULL) return;
 
-    lv_image_header_t * header = &canvas->draw_buf->header;
-    if(x + w - 1 >= (int32_t)header->w || y + h - 1 >= (int32_t)header->h) {
-        LV_LOG_WARN("x or y out of the canvas");
-        return;
-    }
+    LV_ASSERT_MSG(canvas->draw_buf->header.cf != dest_buf->header.cf, "Color formats must be the same");
 
-    lv_area_t src_area_to_copy;
-    lv_area_set(&src_area_to_copy, 0, 0, w - 1, h - 1);
-
-    lv_area_t dest_area_to_copy;
-    lv_area_set(&dest_area_to_copy, x, y, x + w - 1, y + h - 1);
-
-    lv_draw_buf_copy(
-        canvas->draw_buf->data,
-        header->w,
-        header->h,
-        &dest_area_to_copy,
-        (void *)to_copy,
-        w,
-        h,
-        &src_area_to_copy,
-        header->cf);
+    lv_draw_buf_copy(canvas->draw_buf, canvas_area, dest_buf, dest_area);
 }
 
 void lv_canvas_fill_bg(lv_obj_t * obj, lv_color_t color, lv_opa_t opa)
@@ -311,7 +287,7 @@ void lv_canvas_fill_bg(lv_obj_t * obj, lv_color_t color, lv_opa_t opa)
         uint32_t c32 = lv_color_to_u32(color);
         if(header->cf == LV_COLOR_FORMAT_ARGB8888) {
             c32 &= 0x00ffffff;
-            c32 |= opa << 24;
+            c32 |= (uint32_t)opa << 24;
         }
         for(y = 0; y < header->h; y++) {
             uint32_t * buf32 = (uint32_t *)(data + y * stride);
@@ -352,18 +328,17 @@ void lv_canvas_init_layer(lv_obj_t * obj, lv_layer_t * layer)
     lv_area_t canvas_area = {0, 0, header->w - 1,  header->h - 1};
     lv_memzero(layer, sizeof(*layer));
 
-    layer->buf = canvas->draw_buf->data;
+    layer->draw_buf = canvas->draw_buf;
     layer->color_format = header->cf;
     layer->buf_area = canvas_area;
     layer->_clip_area = canvas_area;
-    layer->buf_stride = lv_draw_buf_width_to_stride(lv_area_get_width(&layer->buf_area), layer->color_format);
 }
 
 void lv_canvas_finish_layer(lv_obj_t * canvas, lv_layer_t * layer)
 {
     while(layer->draw_task_head) {
         lv_draw_dispatch_wait_for_request();
-        lv_draw_dispatch_layer(lv_obj_get_disp(canvas), layer);
+        lv_draw_dispatch_layer(lv_obj_get_display(canvas), layer);
     }
 }
 
@@ -385,9 +360,7 @@ static void lv_canvas_destructor(const lv_obj_class_t * class_p, lv_obj_t * obj)
     lv_canvas_t * canvas = (lv_canvas_t *)obj;
     if(canvas->draw_buf == NULL) return;
 
-    lv_cache_lock();
-    lv_cache_invalidate_by_src(canvas->draw_buf, LV_CACHE_SRC_TYPE_POINTER);
-    lv_cache_unlock();
+    lv_image_cache_drop(&canvas->draw_buf);
 }
 
 #endif

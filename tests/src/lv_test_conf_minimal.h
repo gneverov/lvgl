@@ -1,5 +1,4 @@
 #define  LV_MEM_SIZE        65535
-#define  LV_USE_METER       0
 #define  LV_USE_LOG         1
 #define  LV_USE_ASSERT_NULL             0
 #define  LV_USE_ASSERT_MALLOC           0
@@ -12,8 +11,8 @@
 
 #define  LV_BUILD_EXAMPLES              1
 
-#define LV_USE_THEME_SIMPLE              1
-#define LV_USE_THEME_DEFAULT            0
+#define  LV_USE_THEME_SIMPLE            1
+#define  LV_USE_THEME_DEFAULT           0
 
 #define  LV_USE_LODEPNG                 1
 #define  LV_USE_BMP                     1

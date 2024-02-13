@@ -89,13 +89,7 @@ static void draw_execute(lv_draw_vg_lite_unit_t * u)
 
     lv_layer_t * layer = u->base_unit.target_layer;
 
-    lv_vg_lite_buffer_init(
-        &u->target_buffer,
-        layer->buf,
-        lv_area_get_width(&layer->buf_area),
-        lv_area_get_height(&layer->buf_area),
-        lv_vg_lite_vg_fmt(layer->color_format),
-        false);
+    lv_vg_lite_buffer_from_draw_buf(&u->target_buffer, layer->draw_buf);
 
     vg_lite_identity(&u->global_matrix);
     vg_lite_translate(-layer->buf_area.x1, -layer->buf_area.y1, &u->global_matrix);
@@ -114,7 +108,7 @@ static void draw_execute(lv_draw_vg_lite_unit_t * u)
             lv_draw_vg_lite_box_shadow(draw_unit, t->draw_dsc, &t->area);
             break;
         case LV_DRAW_TASK_TYPE_IMAGE:
-            lv_draw_vg_lite_img(draw_unit, t->draw_dsc, &t->area);
+            lv_draw_vg_lite_img(draw_unit, t->draw_dsc, &t->area, false);
             break;
         case LV_DRAW_TASK_TYPE_ARC:
             lv_draw_vg_lite_arc(draw_unit, t->draw_dsc, &t->area);
@@ -158,11 +152,6 @@ static int32_t draw_dispatch(lv_draw_unit_t * draw_unit, lv_layer_t * layer)
         return 0;
     }
 
-    /* Return if target buffer format is not supported. */
-    if(!lv_vg_lite_is_dest_cf_supported(layer->color_format)) {
-        return -1;
-    }
-
     /* Try to get an ready to draw. */
     lv_draw_task_t * t = lv_draw_get_next_available_task(layer, NULL, VG_LITE_DRAW_UNIT_ID);
 
@@ -173,6 +162,11 @@ static int32_t draw_dispatch(lv_draw_unit_t * draw_unit, lv_layer_t * layer)
 
     void * buf = lv_draw_layer_alloc_buf(layer);
     if(!buf) {
+        return -1;
+    }
+
+    /* Return if target buffer format is not supported. */
+    if(!lv_vg_lite_is_dest_cf_supported(layer->draw_buf->header.cf)) {
         return -1;
     }
 
@@ -197,17 +191,7 @@ static int32_t draw_evaluate(lv_draw_unit_t * draw_unit, lv_draw_task_t * task)
     LV_UNUSED(draw_unit);
 
     switch(task->type) {
-#if LV_USE_FREETYPE && LV_FREETYPE_CACHE_TYPE == LV_FREETYPE_CACHE_TYPE_OUTLINE
-        case LV_DRAW_TASK_TYPE_LABEL: {
-                const lv_draw_label_dsc_t * label_dsc = task->draw_dsc;
-                if(lv_freetype_is_outline_font(label_dsc->font)) {
-                    task->preference_score = 0;
-                    task->preferred_draw_unit_id = VG_LITE_DRAW_UNIT_ID;
-                    return 1;
-                }
-                return 0;
-            }
-#endif
+        case LV_DRAW_TASK_TYPE_LABEL:
         case LV_DRAW_TASK_TYPE_FILL:
         case LV_DRAW_TASK_TYPE_BORDER:
         case LV_DRAW_TASK_TYPE_BOX_SHADOW:
@@ -216,7 +200,7 @@ static int32_t draw_evaluate(lv_draw_unit_t * draw_unit, lv_draw_task_t * task)
         case LV_DRAW_TASK_TYPE_LINE:
         case LV_DRAW_TASK_TYPE_ARC:
         case LV_DRAW_TASK_TYPE_TRIANGLE:
-            // case LV_DRAW_TASK_TYPE_MASK_RECTANGLE:
+        case LV_DRAW_TASK_TYPE_MASK_RECTANGLE:
             // case LV_DRAW_TASK_TYPE_MASK_BITMAP:
 #if LV_USE_VECTOR_GRAPHIC
         case LV_DRAW_TASK_TYPE_VECTOR:

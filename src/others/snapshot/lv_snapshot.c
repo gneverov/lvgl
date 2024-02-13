@@ -100,18 +100,21 @@ lv_result_t lv_snapshot_take_to_buf(lv_obj_t * obj, lv_color_format_t cf, lv_ima
     lv_area_increase(&snapshot_area, ext_size, ext_size);
 
     lv_memzero(buf, buf_size);
-    lv_memzero(dsc, sizeof(lv_image_dsc_t));
     dsc->data = buf;
     dsc->data_size = buf_size_needed;
+    /*Keep header flags unchanged, because we don't know if it's allocated or not.*/
     dsc->header.w = w;
     dsc->header.h = h;
     dsc->header.cf = cf;
-    dsc->header.flags = LV_IMAGE_FLAGS_MODIFIABLE;
+    dsc->header.magic = LV_IMAGE_HEADER_MAGIC;
 
     lv_layer_t layer;
     lv_memzero(&layer, sizeof(layer));
 
-    layer.buf = buf;
+    lv_draw_buf_t draw_buf;
+    lv_draw_buf_from_image(&draw_buf, dsc);
+
+    layer.draw_buf = &draw_buf;
     layer.buf_area.x1 = snapshot_area.x1;
     layer.buf_area.y1 = snapshot_area.y1;
     layer.buf_area.x2 = snapshot_area.x1 + w - 1;
@@ -120,7 +123,7 @@ lv_result_t lv_snapshot_take_to_buf(lv_obj_t * obj, lv_color_format_t cf, lv_ima
     layer._clip_area = snapshot_area;
 
     lv_display_t * disp_old = _lv_refr_get_disp_refreshing();
-    lv_display_t * disp_new = lv_obj_get_disp(obj);
+    lv_display_t * disp_new = lv_obj_get_display(obj);
     lv_layer_t * layer_old = disp_new->layer_head;
     disp_new->layer_head = &layer;
 
@@ -148,7 +151,7 @@ lv_image_dsc_t * lv_snapshot_take(lv_obj_t * obj, lv_color_format_t cf)
     h += ext_size * 2;
     if(w == 0 || h == 0) return NULL;
 
-    lv_draw_buf_t * draw_buf = lv_draw_buf_create(w, h, cf, 0);
+    lv_draw_buf_t * draw_buf = lv_draw_buf_create(w, h, cf, LV_STRIDE_AUTO);
     if(draw_buf == NULL) return NULL;
 
     if(lv_snapshot_take_to_buf(obj, cf, (lv_image_dsc_t *)draw_buf, draw_buf->data, draw_buf->data_size) != LV_RESULT_OK) {

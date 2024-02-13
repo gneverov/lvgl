@@ -19,13 +19,19 @@ extern "C" {
 #if LV_USE_DRAW_VG_LITE
 
 #include <stdbool.h>
+#if LV_USE_VG_LITE_THORVG
+#include "../../others/vg_lite_tvg/vg_lite.h"
+#else
 #include <vg_lite.h>
+#endif
 
 /*********************
  *      DEFINES
  *********************/
 
-#define LV_VG_LITE_BUF_ALIGN 64
+#if LV_DRAW_BUF_ALIGN != 64
+#error "LV_DRAW_BUF_ALIGN must be 64"
+#endif
 
 #define LV_VG_LITE_IS_ERROR(err) (err > 0)
 
@@ -66,12 +72,6 @@ extern "C" {
  *      TYPEDEFS
  **********************/
 
-typedef enum {
-    LV_VG_LITE_IMAGE_FLAG_ALLOCED = 1 << 0,
-    LV_VG_LITE_IMAGE_FLAG_ALIGNED = 1 << 1,
-    LV_VG_LITE_IMAGE_FLAG_PRE_MUL = 1 << 2,
-} lv_vg_lite_image_flag_t;
-
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
@@ -85,16 +85,6 @@ const char * lv_vg_lite_error_string(vg_lite_error_t error);
 const char * lv_vg_lite_feature_string(vg_lite_feature_t feature);
 
 const char * lv_vg_lite_buffer_format_string(vg_lite_buffer_format_t format);
-
-const char * lv_vg_lite_filter_string(vg_lite_filter_t filter);
-
-const char * lv_vg_lite_blend_string(vg_lite_blend_t blend);
-
-const char * lv_vg_lite_global_alpha_string(vg_lite_global_alpha_t global_alpha);
-
-const char * lv_vg_lite_fill_rule_string(vg_lite_fill_t fill_rule);
-
-const char * lv_vg_lite_image_mode_string(vg_lite_buffer_image_mode_t image_mode);
 
 const char * lv_vg_lite_vlc_op_string(uint8_t vlc_op);
 
@@ -122,7 +112,7 @@ uint32_t lv_vg_lite_width_to_stride(uint32_t w, vg_lite_buffer_format_t color_fo
 
 uint32_t lv_vg_lite_width_align(uint32_t w);
 
-bool lv_vg_lite_buffer_init(
+void lv_vg_lite_buffer_init(
     vg_lite_buffer_t * buffer,
     const void * ptr,
     int32_t width,
@@ -130,9 +120,12 @@ bool lv_vg_lite_buffer_init(
     vg_lite_buffer_format_t format,
     bool tiled);
 
+void lv_vg_lite_buffer_from_draw_buf(vg_lite_buffer_t * buffer, const lv_draw_buf_t * draw_buf);
+
 void lv_vg_lite_image_matrix(vg_lite_matrix_t * matrix, int32_t x, int32_t y, const lv_draw_image_dsc_t * dsc);
 
-bool lv_vg_lite_buffer_open_image(vg_lite_buffer_t * buffer, lv_image_decoder_dsc_t * decoder_dsc, const void * src);
+bool lv_vg_lite_buffer_open_image(vg_lite_buffer_t * buffer, lv_image_decoder_dsc_t * decoder_dsc, const void * src,
+                                  bool no_cache);
 
 vg_lite_blend_t lv_vg_lite_blend_mode(lv_blend_mode_t blend_mode);
 

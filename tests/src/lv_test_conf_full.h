@@ -1,6 +1,5 @@
 #define LV_MEM_SIZE         (32 * 1024 * 1024)
 #define LV_SHADOW_CACHE_SIZE    (8 * 1024)
-#define LV_IMAGE_CACHE_DEF_SIZE   32
 #define LV_USE_LOG              1
 #define LV_LOG_LEVEL            LV_LOG_LEVEL_TRACE
 #define LV_LOG_PRINTF           1
@@ -89,6 +88,7 @@
 #define LV_USE_DEMO_TRANSFORM   1
 #define LV_USE_DEMO_MULTILANG   1
 #define LV_USE_DEMO_RENDER      1
+#define LV_USE_DEMO_MUSIC       1
 #define LV_USE_DEMO_BENCHMARK   1
 #define LV_USE_DEMO_SCROLL      1
 #define LV_USE_DEMO_VECTOR_GRAPHIC  1
@@ -97,3 +97,17 @@
 #define LV_USE_OBJ_ID_BUILTIN   1
 #define LV_USE_OBJ_PROPERTY     1
 #define LV_BIN_DECODER_RAM_LOAD 1
+
+#define LV_CACHE_DEF_SIZE       (10 * 1024 * 1024)
+
+#define LV_USE_ILI9341      1
+#define LV_USE_ST7735       1
+#define LV_USE_ST7789       1
+#define LV_USE_ST7796       1
+
+#define LV_USE_FREETYPE 1
+#define LV_FREETYPE_CACHE_SIZE 768
+#define LV_FREETYPE_USE_LVGL_PORT 0
+#define LV_FREETYPE_CACHE_FT_FACES 8
+#define LV_FREETYPE_CACHE_FT_SIZES 8
+#define LV_FREETYPE_CACHE_FT_OUTLINES 10
