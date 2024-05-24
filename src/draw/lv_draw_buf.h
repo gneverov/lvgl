@@ -34,6 +34,7 @@ typedef struct {
     uint32_t data_size;     /*Total buf size in bytes*/
     void * data;
     void * unaligned_data;  /*Unaligned address of `data`, used internally by lvgl*/
+    void * user_data;
 } lv_draw_buf_t;
 
 /**
@@ -233,6 +234,7 @@ static inline void lv_draw_buf_from_image(lv_draw_buf_t * buf, const lv_image_ds
 {
     lv_memcpy(buf, img, sizeof(lv_image_dsc_t));
     buf->unaligned_data = buf->data;
+    buf->user_data = NULL;
 }
 
 static inline void lv_draw_buf_to_image(const lv_draw_buf_t * buf, lv_image_dsc_t * img)
