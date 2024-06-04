@@ -144,6 +144,9 @@ lv_result_t lv_bin_decoder_info(lv_image_decoder_t * decoder, const void * src, 
             /*File is always read to buf, thus data can be modified.*/
             header->flags |= LV_IMAGE_FLAGS_MODIFIABLE;
         }
+        else {
+            return LV_RESULT_INVALID;
+        }
     }
     else if(src_type == LV_IMAGE_SRC_SYMBOL) {
         /*The size depend on the font but it is unknown here. It should be handled outside of the
@@ -391,7 +394,7 @@ lv_result_t lv_bin_decoder_get_area(lv_image_decoder_t * decoder, lv_image_decod
     int32_t w_px = lv_area_get_width(full_area);
     uint8_t * img_data = NULL;
     lv_draw_buf_t * decoded = NULL;
-    uint32_t offset = 0;
+    uint32_t offset = dsc->src_type == LV_IMAGE_SRC_FILE ? sizeof(lv_image_header_t) : 0; /*Skip the image header*/
 
     /*We only support read line by line for now*/
     if(decoded_area->y1 == LV_COORD_MIN) {
@@ -435,7 +438,6 @@ lv_result_t lv_bin_decoder_get_area(lv_image_decoder_t * decoder, lv_image_decod
         offset += decoded_area->y1 * dsc->header.stride;
         offset += decoded_area->x1 * bpp / 8; /*Move to x1*/
         if(dsc->src_type == LV_IMAGE_SRC_FILE) {
-            offset += sizeof(lv_image_header_t); /*File image starts with image header*/
             buf = lv_malloc(len);
             LV_ASSERT_NULL(buf);
             if(buf == NULL)
